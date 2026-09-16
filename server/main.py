@@ -9,10 +9,11 @@ from threading import Thread
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from agent.events import list_events
 from agent.orchestrator import TaskOrchestrator, TaskSnapshot
 from agent.worker import execute
 
-app = FastAPI(title="Yuri Code AI", version="0.4.1")
+app = FastAPI(title="Yuri Code AI", version="0.5.0")
 orchestrator = TaskOrchestrator()
 
 
@@ -31,6 +32,14 @@ class TaskResponse(BaseModel):
     error: str | None = None
 
 
+class TaskEventResponse(BaseModel):
+    id: int
+    task_id: int
+    phase: str
+    message: str
+    created_at: str
+
+
 def _response(task: TaskSnapshot) -> TaskResponse:
     return TaskResponse(id=task.id, goal=task.goal, workspace=task.workspace, status=task.status, phase=task.phase, result=task.result, error=task.error)
 
@@ -46,7 +55,6 @@ def _local_worker_id() -> str:
 
 
 def _run_local(task_id: int) -> None:
-    # Claim atomically so an external worker cannot execute the same task.
     task = orchestrator.claim(task_id, _local_worker_id())
     if not task:
         return
@@ -58,13 +66,12 @@ def _run_local(task_id: int) -> None:
 
 @app.on_event("startup")
 def recover_queue() -> None:
-    """Recover interrupted tasks; an external worker can then process them."""
     orchestrator.recover_running()
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "yuri-code-ai", "queue": "durable"}
+    return {"status": "ok", "service": "yuri-code-ai", "queue": "durable", "events": "durable"}
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=202)
@@ -81,6 +88,17 @@ def get_task(task_id: int) -> TaskResponse:
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
     return _response(task)
+
+
+@app.get("/tasks/{task_id}/events", response_model=list[TaskEventResponse])
+def get_task_events(task_id: int, limit: int = 100) -> list[TaskEventResponse]:
+    if not orchestrator.get(task_id):
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    safe_limit = max(1, min(limit, 500))
+    return [
+        TaskEventResponse(id=e.id, task_id=e.task_id, phase=e.phase, message=e.message, created_at=e.created_at.isoformat())
+        for e in list_events(task_id, safe_limit)
+    ]
 
 
 @app.post("/tasks/{task_id}/cancel", response_model=TaskResponse)
