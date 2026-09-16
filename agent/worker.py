@@ -4,12 +4,12 @@ from __future__ import annotations
 import os
 import socket
 import time
-from pathlib import Path
 
 from openhands.sdk import Conversation
 
 from .main import build_agent
 from .orchestrator import TaskOrchestrator, run_task
+from .project_context import build_project_context
 
 
 def worker_id() -> str:
@@ -21,8 +21,14 @@ def execute(task, orchestrator: TaskOrchestrator) -> None:
     conversation = Conversation(agent=agent, workspace=task.workspace)
 
     def runner(goal: str, workspace: str, progress):
+        progress("indexing")
+        context = build_project_context(workspace, goal)
         progress("planning")
-        conversation.send_message(goal)
+        conversation.send_message(
+            f"{context}\n\nCURRENT TASK\n{goal}\n\n"
+            "Use the indexed context as a starting point, but inspect files directly whenever needed. "
+            "Keep durable project knowledge accurate and do not invent missing facts."
+        )
         progress("executing")
         conversation.run()
         progress("validating")
