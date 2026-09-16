@@ -79,12 +79,15 @@ class TaskOrchestrator:
     def recover_running(self) -> int:
         with SessionLocal.begin() as db:
             records = list(db.scalars(select(TaskRecord).where(TaskRecord.status == TaskStatus.RUNNING.value)).all())
+            ids = []
             for record in records:
                 record.status = TaskStatus.QUEUED.value
                 record.phase = "recovered"
                 record.worker_id = None
-                self._event(record.id, "recovered", "Task returned to queue after worker restart")
-            return len(records)
+                ids.append(record.id)
+        for task_id in ids:
+            self._event(task_id, "recovered", "Task returned to queue after worker restart")
+        return len(ids)
 
     def _claim_record(self, db, record: TaskRecord, worker_id: str) -> TaskSnapshot:
         record.status = TaskStatus.RUNNING.value
