@@ -77,16 +77,27 @@ class TaskOrchestrator:
                 record.worker_id = None
             return len(records)
 
+    def _claim_record(self, db, record: TaskRecord, worker_id: str) -> TaskSnapshot:
+        record.status = TaskStatus.RUNNING.value
+        record.phase = "running"
+        record.worker_id = worker_id
+        record.started_at = datetime.now(timezone.utc)
+        return self._snapshot(record)
+
     def claim_next(self, worker_id: str) -> TaskSnapshot | None:
         with self._lock, SessionLocal.begin() as db:
             record = db.scalar(select(TaskRecord).where(TaskRecord.status == TaskStatus.QUEUED.value).order_by(TaskRecord.id).limit(1))
             if not record:
                 return None
-            record.status = TaskStatus.RUNNING.value
-            record.phase = "running"
-            record.worker_id = worker_id
-            record.started_at = datetime.now(timezone.utc)
-            return self._snapshot(record)
+            return self._claim_record(db, record, worker_id)
+
+    def claim(self, task_id: int, worker_id: str) -> TaskSnapshot | None:
+        """Atomically claim one specific queued task, used by the embedded API worker."""
+        with self._lock, SessionLocal.begin() as db:
+            record = db.get(TaskRecord, task_id)
+            if not record or record.status != TaskStatus.QUEUED.value:
+                return None
+            return self._claim_record(db, record, worker_id)
 
     def update(self, task_id: int, *, phase: str | None = None, status: TaskStatus | None = None, result: str | None = None, error: str | None = None) -> TaskSnapshot | None:
         with SessionLocal.begin() as db:
