@@ -5,18 +5,18 @@ Agente autônomo de engenharia de software desenvolvido por Yuri.
 ## Fundação atual
 
 - OpenHands para programação.
-- FastAPI + fila persistente + worker desacoplado.
+- FastAPI + fila persistente + worker.
 - Recuperação após reinício.
 - Memória persistente e histórico de pesquisa.
-- Indexação persistente do workspace para contexto relevante.
-- Pesquisa web via Tavily quando configurada.
-- Checkpoint Git local antes da execução.
-- Quality gate adaptativo com validação inicial e final.
-- Cancelamento cooperativo entre etapas da execução.
-- Eventos persistentes de ciclo de vida por tarefa.
+- Indexação do workspace para contexto relevante.
+- Pesquisa web integrada e Tavily opcional.
+- Checkpoint Git antes de alterações quando possível.
+- Quality gate com validação antes e depois da correção.
+- Eventos persistentes de execução.
+- Operações GitHub: clone, branch, commit, push e Pull Request via API quando configurado.
 - Interface Next.js acompanhando tarefas.
 
-A aplicação não impõe quotas artificiais de pesquisas, arquivos ou iterações. Limites externos de modelo, sistema operacional, credenciais, serviços e cobrança continuam sendo infraestrutura.
+Sem quotas artificiais de pesquisas, arquivos ou iterações. Limites externos de modelo, sistema, permissões, serviços e cobrança permanecem válidos.
 
 ## Execução
 
@@ -25,18 +25,16 @@ yuri-code-ai-api
 python -m agent.worker
 ```
 
-Para produção, prefira `YURI_API_RUN_LOCAL_WORKER=false` e um worker separado.
+Produção: `YURI_API_RUN_LOCAL_WORKER=false` e worker separado.
 
 ## API
 
-- `GET /health`
-- `POST /tasks`
-- `GET /tasks/{id}`
-- `GET /tasks/{id}/events`
-- `POST /tasks/{id}/cancel`
+`GET /health` · `POST /tasks` · `GET /tasks/{id}` · `GET /tasks/{id}/events` · `POST /tasks/{id}/cancel`
 
-Os eventos são persistidos no banco e podem alimentar streaming no frontend sem depender de memória do processo.
+## GitHub
+
+Configure `GITHUB_TOKEN` somente no ambiente de execução quando a automação GitHub for necessária. O fluxo documentado está em `docs/GITHUB-AUTOMATION.md`.
 
 ## Próxima evolução
 
-Integração explícita com GitHub (clone/branch/commit/PR), streaming em tempo real, revisão especializada, deploy/monitoramento e roteamento entre modelos.
+Revisão especializada, deploy/monitoramento, rollback automatizado, roteamento entre modelos e execução multiagente.
