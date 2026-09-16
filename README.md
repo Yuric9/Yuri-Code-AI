@@ -8,11 +8,11 @@ Agente autônomo de engenharia de software desenvolvido por Yuri.
 - FastAPI + fila persistente + worker para tarefas longas.
 - Recuperação de tarefas após reinício.
 - Memória persistente e histórico de pesquisa.
-- Indexação do workspace para fornecer contexto relevante ao agente.
+- Indexação do workspace para contexto relevante.
 - Pesquisa web integrada e Tavily opcional.
 - Checkpoint Git antes de alterações quando possível.
-- Quality gate com validação antes/depois da correção.
-- Interface Next.js acompanhando o estado da tarefa.
+- Quality gate com validação antes e depois da correção.
+- Interface Next.js acompanhando tarefas.
 
 A aplicação não cria quotas artificiais de pesquisas, arquivos ou iterações. Limites do modelo, provedor, sistema operacional, credenciais, serviços externos e cobrança continuam sendo limites de infraestrutura.
 
@@ -23,11 +23,14 @@ yuri-code-ai-api
 python -m agent.worker
 ```
 
-Para produção, configure `YURI_API_RUN_LOCAL_WORKER=false` e mantenha o worker separado.
+Em produção, configure `YURI_API_RUN_LOCAL_WORKER=false` e mantenha o worker separado.
 
 ## API
 
-`GET /health` · `POST /tasks` · `GET /tasks/{id}` · `POST /tasks/{id}/cancel`
+- `GET /health`
+- `POST /tasks`
+- `GET /tasks/{id}`
+- `POST /tasks/{id}/cancel`
 
 ## Próxima evolução
 
