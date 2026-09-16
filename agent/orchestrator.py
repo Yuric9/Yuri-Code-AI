@@ -1,8 +1,4 @@
-"""Persistent task orchestration for Yuri Code AI.
-
-The orchestrator deliberately has no application-level task/search/file quota. It
-persists lifecycle state so a web request can enqueue work and a worker can resume it.
-"""
+"""Durable task orchestration for Yuri Code AI."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -35,6 +31,8 @@ class TaskRecord(Base):
     phase: Mapped[str] = mapped_column(String(64), default="queued")
     result: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    worker_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -51,7 +49,7 @@ class TaskSnapshot:
 
 
 class TaskOrchestrator:
-    """Small durable queue suitable for local V1 and easy to replace by a worker queue later."""
+    """SQLite/PostgreSQL-backed queue with restart recovery and no application quota."""
 
     def __init__(self) -> None:
         init_db()
@@ -69,13 +67,25 @@ class TaskOrchestrator:
             record = db.get(TaskRecord, task_id)
             return self._snapshot(record) if record else None
 
-    def claim_next(self) -> TaskSnapshot | None:
+    def recover_running(self) -> int:
+        """Put interrupted work back in the queue after an API/worker restart."""
+        with SessionLocal.begin() as db:
+            records = list(db.scalars(select(TaskRecord).where(TaskRecord.status == TaskStatus.RUNNING.value)).all())
+            for record in records:
+                record.status = TaskStatus.QUEUED.value
+                record.phase = "recovered"
+                record.worker_id = None
+            return len(records)
+
+    def claim_next(self, worker_id: str) -> TaskSnapshot | None:
         with self._lock, SessionLocal.begin() as db:
             record = db.scalar(select(TaskRecord).where(TaskRecord.status == TaskStatus.QUEUED.value).order_by(TaskRecord.id).limit(1))
             if not record:
                 return None
             record.status = TaskStatus.RUNNING.value
             record.phase = "running"
+            record.worker_id = worker_id
+            record.started_at = datetime.now(timezone.utc)
             return self._snapshot(record)
 
     def update(self, task_id: int, *, phase: str | None = None, status: TaskStatus | None = None, result: str | None = None, error: str | None = None) -> TaskSnapshot | None:
@@ -94,7 +104,16 @@ class TaskOrchestrator:
             return self._snapshot(record)
 
     def cancel(self, task_id: int) -> TaskSnapshot | None:
-        return self.update(task_id, status=TaskStatus.CANCELLED, phase="cancelled")
+        with SessionLocal.begin() as db:
+            record = db.get(TaskRecord, task_id)
+            if not record:
+                return None
+            if record.status == TaskStatus.RUNNING.value:
+                record.phase = "cancel_requested"
+                return self._snapshot(record)
+            record.status = TaskStatus.CANCELLED.value
+            record.phase = "cancelled"
+            return self._snapshot(record)
 
     @staticmethod
     def _snapshot(record: TaskRecord) -> TaskSnapshot:
@@ -102,7 +121,7 @@ class TaskOrchestrator:
 
 
 def run_task(orchestrator: TaskOrchestrator, task: TaskSnapshot, runner: Callable[[str, str, Callable[[str], None]], str]) -> TaskSnapshot:
-    """Run one claimed task and persist every lifecycle boundary."""
+    """Run a claimed task and persist lifecycle boundaries."""
     try:
         def progress(phase: str) -> None:
             orchestrator.update(task.id, phase=phase)
