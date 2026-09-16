@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from agent.main import build_agent
-from agent.orchestrator import TaskOrchestrator, run_task
+from agent.orchestrator import TaskOrchestrator, TaskSnapshot, run_task
 from openhands.sdk import Conversation
 
 app = FastAPI(title="Yuri Code AI", version="0.3.0")
@@ -29,6 +29,18 @@ class TaskResponse(BaseModel):
     phase: str
     result: str | None = None
     error: str | None = None
+
+
+def _response(task: TaskSnapshot) -> TaskResponse:
+    return TaskResponse(
+        id=task.id,
+        goal=task.goal,
+        workspace=task.workspace,
+        status=task.status,
+        phase=task.phase,
+        result=task.result,
+        error=task.error,
+    )
 
 
 def _workspace(value: str | None) -> str:
@@ -64,7 +76,7 @@ def health() -> dict[str, str]:
 def create_task(payload: TaskRequest) -> TaskResponse:
     task = orchestrator.enqueue(payload.message.strip(), _workspace(payload.workspace))
     Thread(target=_run, args=(task.id,), daemon=True, name=f"yuri-task-{task.id}").start()
-    return TaskResponse(**task.__dict__)
+    return _response(task)
 
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -72,7 +84,7 @@ def get_task(task_id: int) -> TaskResponse:
     task = orchestrator.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    return TaskResponse(**task.__dict__)
+    return _response(task)
 
 
 @app.post("/tasks/{task_id}/cancel", response_model=TaskResponse)
@@ -80,4 +92,4 @@ def cancel_task(task_id: int) -> TaskResponse:
     task = orchestrator.cancel(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    return TaskResponse(**task.__dict__)
+    return _response(task)
