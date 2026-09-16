@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from pathlib import Path
 from threading import Thread
 
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from agent.orchestrator import TaskOrchestrator, TaskSnapshot
 from agent.worker import execute
 
-app = FastAPI(title="Yuri Code AI", version="0.4.0")
+app = FastAPI(title="Yuri Code AI", version="0.4.1")
 orchestrator = TaskOrchestrator()
 
 
@@ -40,8 +41,13 @@ def _workspace(value: str | None) -> str:
     return str(root)
 
 
+def _local_worker_id() -> str:
+    return f"api-local:{socket.gethostname()}:{os.getpid()}"
+
+
 def _run_local(task_id: int) -> None:
-    task = orchestrator.get(task_id)
+    # Claim atomically so an external worker cannot execute the same task.
+    task = orchestrator.claim(task_id, _local_worker_id())
     if not task:
         return
     try:
