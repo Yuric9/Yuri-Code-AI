@@ -7,6 +7,7 @@ import time
 
 from openhands.sdk import Conversation
 
+from .checkpoints import checkpoint
 from .main import build_agent
 from .orchestrator import TaskOrchestrator, run_task
 from .project_context import build_project_context
@@ -22,6 +23,8 @@ def execute(task, orchestrator: TaskOrchestrator) -> None:
     conversation = Conversation(agent=agent, workspace=task.workspace)
 
     def runner(goal: str, workspace: str, progress):
+        progress("checkpoint")
+        checkpoint(workspace, f"yuri-ai checkpoint before task #{task.id}")
         progress("indexing")
         context = build_project_context(workspace, goal)
         progress("planning")
@@ -34,15 +37,16 @@ def execute(task, orchestrator: TaskOrchestrator) -> None:
         conversation.run()
         progress("validating")
         validation = validate_project(workspace)
-        # Give the agent a final opportunity to inspect/fix validation failures.
         conversation.send_message(
             "Validation report:\n" + validation +
-            "\n\nIf validation failed, diagnose and fix the project, then rerun the relevant checks. "
-            "If it passed, leave the workspace in a clean, working state."
+            "\n\nIf any check failed, diagnose and fix the project, then rerun the relevant checks. "
+            "If checks passed, inspect the final changes for regressions and leave the workspace working."
         )
         conversation.run()
+        progress("final_validation")
+        final_validation = validate_project(workspace)
         progress("validated")
-        return validation
+        return "Initial validation:\n" + validation + "\n\nFinal validation:\n" + final_validation
 
     run_task(orchestrator, task, runner)
 
