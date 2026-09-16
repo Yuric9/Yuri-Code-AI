@@ -4,9 +4,9 @@ Agente autônomo de engenharia de software desenvolvido por Yuri.
 
 ## Fundação atual
 
-- OpenHands para execução de programação.
-- FastAPI + fila persistente + worker para tarefas longas.
-- Recuperação de tarefas após reinício.
+- OpenHands para programação.
+- FastAPI + fila persistente + worker.
+- Recuperação após reinício.
 - Memória persistente e histórico de pesquisa.
 - Indexação do workspace para contexto relevante.
 - Pesquisa web integrada e Tavily opcional.
@@ -14,7 +14,7 @@ Agente autônomo de engenharia de software desenvolvido por Yuri.
 - Quality gate com validação antes e depois da correção.
 - Interface Next.js acompanhando tarefas.
 
-A aplicação não cria quotas artificiais de pesquisas, arquivos ou iterações. Limites do modelo, provedor, sistema operacional, credenciais, serviços externos e cobrança continuam sendo limites de infraestrutura.
+Sem quotas artificiais de pesquisas, arquivos ou iterações. Limites externos de modelo, sistema, permissões, serviços e cobrança permanecem válidos.
 
 ## Execução
 
@@ -23,14 +23,11 @@ yuri-code-ai-api
 python -m agent.worker
 ```
 
-Em produção, configure `YURI_API_RUN_LOCAL_WORKER=false` e mantenha o worker separado.
+Produção: `YURI_API_RUN_LOCAL_WORKER=false` e worker separado.
 
 ## API
 
-- `GET /health`
-- `POST /tasks`
-- `GET /tasks/{id}`
-- `POST /tasks/{id}/cancel`
+`GET /health` · `POST /tasks` · `GET /tasks/{id}` · `POST /tasks/{id}/cancel`
 
 ## Próxima evolução
 
