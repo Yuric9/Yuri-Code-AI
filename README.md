@@ -5,16 +5,18 @@ Agente autônomo de engenharia de software desenvolvido por Yuri.
 ## Fundação atual
 
 - OpenHands para programação.
-- FastAPI + fila persistente + worker.
+- FastAPI + fila persistente + worker desacoplado.
 - Recuperação após reinício.
 - Memória persistente e histórico de pesquisa.
-- Indexação do workspace para contexto relevante.
-- Pesquisa web integrada e Tavily opcional.
-- Checkpoint Git antes de alterações quando possível.
-- Quality gate com validação antes e depois da correção.
+- Indexação persistente do workspace para contexto relevante.
+- Pesquisa web via Tavily quando configurada.
+- Checkpoint Git local antes da execução.
+- Quality gate adaptativo com validação inicial e final.
+- Cancelamento cooperativo entre etapas da execução.
+- Eventos persistentes de ciclo de vida por tarefa.
 - Interface Next.js acompanhando tarefas.
 
-Sem quotas artificiais de pesquisas, arquivos ou iterações. Limites externos de modelo, sistema, permissões, serviços e cobrança permanecem válidos.
+A aplicação não impõe quotas artificiais de pesquisas, arquivos ou iterações. Limites externos de modelo, sistema operacional, credenciais, serviços e cobrança continuam sendo infraestrutura.
 
 ## Execução
 
@@ -23,12 +25,18 @@ yuri-code-ai-api
 python -m agent.worker
 ```
 
-Produção: `YURI_API_RUN_LOCAL_WORKER=false` e worker separado.
+Para produção, prefira `YURI_API_RUN_LOCAL_WORKER=false` e um worker separado.
 
 ## API
 
-`GET /health` · `POST /tasks` · `GET /tasks/{id}` · `POST /tasks/{id}/cancel`
+- `GET /health`
+- `POST /tasks`
+- `GET /tasks/{id}`
+- `GET /tasks/{id}/events`
+- `POST /tasks/{id}/cancel`
+
+Os eventos são persistidos no banco e podem alimentar streaming no frontend sem depender de memória do processo.
 
 ## Próxima evolução
 
-Streaming de eventos, GitHub/branches/PRs, revisão especializada, deploy/monitoramento e roteamento entre modelos.
+Integração explícita com GitHub (clone/branch/commit/PR), streaming em tempo real, revisão especializada, deploy/monitoramento e roteamento entre modelos.
