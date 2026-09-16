@@ -1,4 +1,4 @@
-"""FastAPI service that turns Yuri Code AI into a persistent task endpoint."""
+"""FastAPI service for the durable Yuri Code AI task queue."""
 from __future__ import annotations
 
 import os
@@ -8,11 +8,10 @@ from threading import Thread
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from agent.main import build_agent
-from agent.orchestrator import TaskOrchestrator, TaskSnapshot, run_task
-from openhands.sdk import Conversation
+from agent.orchestrator import TaskOrchestrator, TaskSnapshot
+from agent.worker import execute
 
-app = FastAPI(title="Yuri Code AI", version="0.3.0")
+app = FastAPI(title="Yuri Code AI", version="0.4.0")
 orchestrator = TaskOrchestrator()
 
 
@@ -32,15 +31,7 @@ class TaskResponse(BaseModel):
 
 
 def _response(task: TaskSnapshot) -> TaskResponse:
-    return TaskResponse(
-        id=task.id,
-        goal=task.goal,
-        workspace=task.workspace,
-        status=task.status,
-        phase=task.phase,
-        result=task.result,
-        error=task.error,
-    )
+    return TaskResponse(id=task.id, goal=task.goal, workspace=task.workspace, status=task.status, phase=task.phase, result=task.result, error=task.error)
 
 
 def _workspace(value: str | None) -> str:
@@ -49,33 +40,32 @@ def _workspace(value: str | None) -> str:
     return str(root)
 
 
-def _run(task_id: int) -> None:
+def _run_local(task_id: int) -> None:
     task = orchestrator.get(task_id)
     if not task:
         return
-    agent = build_agent()
-    conversation = Conversation(agent=agent, workspace=task.workspace)
+    try:
+        execute(task, orchestrator)
+    except Exception as exc:
+        orchestrator.update(task.id, phase="failed", error=str(exc))
 
-    def runner(goal: str, workspace: str, progress):
-        progress("planning")
-        conversation.send_message(goal)
-        progress("executing")
-        conversation.run()
-        progress("validating")
-        return "Tarefa executada pelo agente. Consulte o workspace para os arquivos e alterações produzidos."
 
-    run_task(orchestrator, task, runner)
+@app.on_event("startup")
+def recover_queue() -> None:
+    """Recover interrupted tasks; an external worker can then process them."""
+    orchestrator.recover_running()
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "yuri-code-ai"}
+    return {"status": "ok", "service": "yuri-code-ai", "queue": "durable"}
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=202)
 def create_task(payload: TaskRequest) -> TaskResponse:
     task = orchestrator.enqueue(payload.message.strip(), _workspace(payload.workspace))
-    Thread(target=_run, args=(task.id,), daemon=True, name=f"yuri-task-{task.id}").start()
+    if os.getenv("YURI_API_RUN_LOCAL_WORKER", "true").lower() in {"1", "true", "yes"}:
+        Thread(target=_run_local, args=(task.id,), daemon=True, name=f"yuri-task-{task.id}").start()
     return _response(task)
 
 
