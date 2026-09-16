@@ -14,7 +14,7 @@ dependencies = [
 
 [project.scripts]
 yuri-code-ai = "agent.main:main"
-yuri-code-ai-api = "server.main:app"
+yuri-code-ai-api = "server.cli:main"
 
 [build-system]
 requires = ["hatchling"]
