@@ -1,11 +1,13 @@
 [project]
 name = "yuri-code-ai"
-version = "0.1.0"
-description = "AI coding agent built with OpenHands Software Agent SDK"
+version = "0.2.0"
+description = "AI coding agent with autonomous web research and persistent memory"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "openhands-sdk",
+    "sqlalchemy>=2.0",
+    "tavily-python>=0.7",
 ]
 
 [project.scripts]
