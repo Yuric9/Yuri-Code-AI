@@ -10,6 +10,7 @@ from openhands.sdk import Conversation
 from .main import build_agent
 from .orchestrator import TaskOrchestrator, run_task
 from .project_context import build_project_context
+from .quality_gate import validate_project
 
 
 def worker_id() -> str:
@@ -32,7 +33,16 @@ def execute(task, orchestrator: TaskOrchestrator) -> None:
         progress("executing")
         conversation.run()
         progress("validating")
-        return "Tarefa executada pelo agente."
+        validation = validate_project(workspace)
+        # Give the agent a final opportunity to inspect/fix validation failures.
+        conversation.send_message(
+            "Validation report:\n" + validation +
+            "\n\nIf validation failed, diagnose and fix the project, then rerun the relevant checks. "
+            "If it passed, leave the workspace in a clean, working state."
+        )
+        conversation.run()
+        progress("validated")
+        return validation
 
     run_task(orchestrator, task, runner)
 
