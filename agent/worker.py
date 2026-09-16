@@ -1,0 +1,53 @@
+"""Background worker that continuously drains the durable Yuri task queue."""
+from __future__ import annotations
+
+import os
+import socket
+import time
+from pathlib import Path
+
+from openhands.sdk import Conversation
+
+from .main import build_agent
+from .orchestrator import TaskOrchestrator, run_task
+
+
+def worker_id() -> str:
+    return f"{socket.gethostname()}:{os.getpid()}"
+
+
+def execute(task, orchestrator: TaskOrchestrator) -> None:
+    agent = build_agent()
+    conversation = Conversation(agent=agent, workspace=task.workspace)
+
+    def runner(goal: str, workspace: str, progress):
+        progress("planning")
+        conversation.send_message(goal)
+        progress("executing")
+        conversation.run()
+        progress("validating")
+        return "Tarefa executada pelo agente."
+
+    run_task(orchestrator, task, runner)
+
+
+def run_forever(poll_seconds: float = 1.0) -> None:
+    orchestrator = TaskOrchestrator()
+    orchestrator.recover_running()
+    identity = worker_id()
+    print(f"Yuri Code AI worker ativo: {identity}")
+
+    while True:
+        task = orchestrator.claim_next(identity)
+        if task is None:
+            time.sleep(poll_seconds)
+            continue
+        print(f"Executando tarefa #{task.id}: {task.goal[:100]}")
+        try:
+            execute(task, orchestrator)
+        except Exception as exc:
+            orchestrator.update(task.id, phase="failed", error=str(exc))
+
+
+if __name__ == "__main__":
+    run_forever(float(os.getenv("YURI_WORKER_POLL_SECONDS", "1")))
