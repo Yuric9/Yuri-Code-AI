@@ -2,10 +2,6 @@
 
 Agente de IA para programação, desenvolvido por Yuri.
 
-## Objetivo
-
-A Yuri Code AI é um agente de programação com autonomia para pesquisar na internet, entender projetos, criar e editar código, executar comandos, testar, corrigir erros e continuar iterando até concluir uma tarefa.
-
 ## Capacidades atuais
 
 - Programação, terminal, dependências e testes.
@@ -35,21 +31,8 @@ Next.js → FastAPI → fila persistente → Worker → OpenHands Agent
 
 ## Execução
 
-Backend:
-
 ```bash
 yuri-code-ai-api
-```
-
-ou:
-
-```bash
-uvicorn server.main:app --host 127.0.0.1 --port 8000
-```
-
-Worker:
-
-```bash
 python -m agent.worker
 ```
 
@@ -64,4 +47,4 @@ Em produção, configure `YURI_API_RUN_LOCAL_WORKER=false` e rode o worker separ
 
 ## Próximas camadas
 
-A fundação está pronta para receber streaming de eventos, GitHub/branches/PRs, revisão especializada, deploy/monitoramento e roteamento entre modelos.
+Streaming de eventos, GitHub/branches/PRs, revisão especializada, deploy/monitoramento e roteamento entre modelos.
