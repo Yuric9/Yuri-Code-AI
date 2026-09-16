@@ -14,7 +14,7 @@ export default function Home() {
   useEffect(() => {
     if (!task || ["completed", "failed", "cancelled"].includes(task.status)) return;
     const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/tasks/${task.id}`, { cache: "no-store" });
+      const response = await fetch(`/api/task-status?id=${task.id}`, { cache: "no-store" });
       if (!response.ok) return;
       const data = await response.json();
       setTask(data);
@@ -93,7 +93,7 @@ export default function Home() {
           <form className="composer" onSubmit={sendMessage}>
             <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ex.: analise meu projeto e encontre os erros..." />
             <div className="composer-footer">
-              <span className="hint">A tarefa continua no backend mesmo depois do envio.</span>
+              <span className="hint">A tarefa é persistida e pode ser recuperada pelo worker.</span>
               <button className="send" type="submit" disabled={busy}>{busy ? "Executando..." : "Enviar ↑"}</button>
             </div>
           </form>
