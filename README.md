@@ -1,33 +1,20 @@
 # Yuri Code AI
 
-Agente de IA para programação, desenvolvido por Yuri.
+Agente autônomo de engenharia de software desenvolvido por Yuri.
 
-## Capacidades atuais
+## Fundação atual
 
-- Programação, terminal, dependências e testes.
-- Pesquisa web com navegador e Tavily opcional, com histórico persistente.
-- Memória persistente em SQLite ou PostgreSQL.
-- Indexação do workspace e recuperação de contexto relevante antes de cada tarefa.
-- Fila persistente, worker separado e recuperação após reinício.
-- Checkpoint Git local antes de alterações quando o workspace é um repositório.
-- Quality gate com validação inicial e final.
-- API FastAPI e interface Next.js para acompanhar tarefas.
+- OpenHands para execução de programação.
+- FastAPI + fila persistente + worker para tarefas longas.
+- Recuperação de tarefas após reinício.
+- Memória persistente e histórico de pesquisa.
+- Indexação do workspace para fornecer contexto relevante ao agente.
+- Pesquisa web integrada e Tavily opcional.
+- Checkpoint Git antes de alterações quando possível.
+- Quality gate com validação antes/depois da correção.
+- Interface Next.js acompanhando o estado da tarefa.
 
-## Autonomia
-
-Não existe quota diária, mensal ou por conversa implementada pela Yuri Code AI, nem limite artificial de arquivos, pesquisas ou iterações. Isso não elimina limites externos do modelo/provedor, APIs, sistema operacional, permissões, serviços de terceiros ou cobrança.
-
-## Arquitetura
-
-```text
-Next.js → FastAPI → fila persistente → Worker → OpenHands Agent
-                                      │          ├─ Files
-                                      │          ├─ Terminal
-                                      │          └─ Web
-                                      ├─ Project Index / Memory
-                                      ├─ Git Checkpoint
-                                      └─ Quality Gate
-```
+A aplicação não cria quotas artificiais de pesquisas, arquivos ou iterações. Limites do modelo, provedor, sistema operacional, credenciais, serviços externos e cobrança continuam sendo limites de infraestrutura.
 
 ## Execução
 
@@ -36,15 +23,12 @@ yuri-code-ai-api
 python -m agent.worker
 ```
 
-Em produção, configure `YURI_API_RUN_LOCAL_WORKER=false` e rode o worker separadamente.
+Para produção, configure `YURI_API_RUN_LOCAL_WORKER=false` e mantenha o worker separado.
 
 ## API
 
-- `GET /health`
-- `POST /tasks`
-- `GET /tasks/{id}`
-- `POST /tasks/{id}/cancel`
+`GET /health` · `POST /tasks` · `GET /tasks/{id}` · `POST /tasks/{id}/cancel`
 
-## Próximas camadas
+## Próxima evolução
 
 Streaming de eventos, GitHub/branches/PRs, revisão especializada, deploy/monitoramento e roteamento entre modelos.
