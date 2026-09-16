@@ -11,6 +11,7 @@ from sqlalchemy import DateTime, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base, SessionLocal, init_db
+from .events import record as record_event
 
 
 class TaskStatus(StrEnum):
@@ -23,7 +24,6 @@ class TaskStatus(StrEnum):
 
 class TaskRecord(Base):
     __tablename__ = "tasks"
-
     id: Mapped[int] = mapped_column(primary_key=True)
     goal: Mapped[str] = mapped_column(Text)
     workspace: Mapped[str] = mapped_column(String(2048))
@@ -49,18 +49,27 @@ class TaskSnapshot:
 
 
 class TaskOrchestrator:
-    """SQLite/PostgreSQL-backed queue with restart recovery and no application quota."""
+    """SQLite/PostgreSQL-backed queue with restart recovery and durable lifecycle events."""
 
     def __init__(self) -> None:
         init_db()
         self._lock = Lock()
+
+    def _event(self, task_id: int, phase: str, message: str) -> None:
+        try:
+            record_event(task_id, phase, message)
+        except Exception:
+            # Event logging must never bring down the worker.
+            pass
 
     def enqueue(self, goal: str, workspace: str) -> TaskSnapshot:
         with SessionLocal.begin() as db:
             record = TaskRecord(goal=goal, workspace=workspace)
             db.add(record)
             db.flush()
-            return self._snapshot(record)
+            snapshot = self._snapshot(record)
+        self._event(snapshot.id, "queued", "Task created")
+        return snapshot
 
     def get(self, task_id: int) -> TaskSnapshot | None:
         with SessionLocal() as db:
@@ -68,13 +77,13 @@ class TaskOrchestrator:
             return self._snapshot(record) if record else None
 
     def recover_running(self) -> int:
-        """Put interrupted work back in the queue after an API/worker restart."""
         with SessionLocal.begin() as db:
             records = list(db.scalars(select(TaskRecord).where(TaskRecord.status == TaskStatus.RUNNING.value)).all())
             for record in records:
                 record.status = TaskStatus.QUEUED.value
                 record.phase = "recovered"
                 record.worker_id = None
+                self._event(record.id, "recovered", "Task returned to queue after worker restart")
             return len(records)
 
     def _claim_record(self, db, record: TaskRecord, worker_id: str) -> TaskSnapshot:
@@ -89,15 +98,18 @@ class TaskOrchestrator:
             record = db.scalar(select(TaskRecord).where(TaskRecord.status == TaskStatus.QUEUED.value).order_by(TaskRecord.id).limit(1))
             if not record:
                 return None
-            return self._claim_record(db, record, worker_id)
+            snapshot = self._claim_record(db, record, worker_id)
+        self._event(snapshot.id, "running", f"Claimed by {worker_id}")
+        return snapshot
 
     def claim(self, task_id: int, worker_id: str) -> TaskSnapshot | None:
-        """Atomically claim one specific queued task, used by the embedded API worker."""
         with self._lock, SessionLocal.begin() as db:
             record = db.get(TaskRecord, task_id)
             if not record or record.status != TaskStatus.QUEUED.value:
                 return None
-            return self._claim_record(db, record, worker_id)
+            snapshot = self._claim_record(db, record, worker_id)
+        self._event(snapshot.id, "running", f"Claimed by {worker_id}")
+        return snapshot
 
     def update(self, task_id: int, *, phase: str | None = None, status: TaskStatus | None = None, result: str | None = None, error: str | None = None) -> TaskSnapshot | None:
         with SessionLocal.begin() as db:
@@ -112,7 +124,12 @@ class TaskOrchestrator:
                 record.result = result
             if error is not None:
                 record.error = error
-            return self._snapshot(record)
+            snapshot = self._snapshot(record)
+        if phase is not None:
+            self._event(task_id, phase, error or phase)
+        if status is not None:
+            self._event(task_id, status.value, status.value)
+        return snapshot
 
     def cancel(self, task_id: int) -> TaskSnapshot | None:
         with SessionLocal.begin() as db:
@@ -121,10 +138,15 @@ class TaskOrchestrator:
                 return None
             if record.status == TaskStatus.RUNNING.value:
                 record.phase = "cancel_requested"
-                return self._snapshot(record)
-            record.status = TaskStatus.CANCELLED.value
-            record.phase = "cancelled"
-            return self._snapshot(record)
+                snapshot = self._snapshot(record)
+                requested = True
+            else:
+                record.status = TaskStatus.CANCELLED.value
+                record.phase = "cancelled"
+                snapshot = self._snapshot(record)
+                requested = False
+        self._event(task_id, snapshot.phase, "Cancellation requested" if requested else "Task cancelled")
+        return snapshot
 
     @staticmethod
     def _snapshot(record: TaskRecord) -> TaskSnapshot:
@@ -132,7 +154,6 @@ class TaskOrchestrator:
 
 
 def run_task(orchestrator: TaskOrchestrator, task: TaskSnapshot, runner: Callable[[str, str, Callable[[str], None]], str]) -> TaskSnapshot:
-    """Run a claimed task and persist lifecycle boundaries."""
     try:
         def progress(phase: str) -> None:
             orchestrator.update(task.id, phase=phase)
