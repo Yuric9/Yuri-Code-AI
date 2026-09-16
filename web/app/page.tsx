@@ -4,25 +4,34 @@ import { FormEvent, useEffect, useState } from "react";
 
 type Message = { role: "user" | "ai"; text: string };
 type Task = { id: number; status: string; phase: string; result?: string | null; error?: string | null };
+type EventItem = { id: number; phase: string; message: string; created_at: string };
+
+const terminal = ["completed", "failed", "cancelled"];
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [task, setTask] = useState<Task | null>(null);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!task || ["completed", "failed", "cancelled"].includes(task.status)) return;
+    if (!task) return;
     const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/task-status?id=${task.id}`, { cache: "no-store" });
-      if (!response.ok) return;
-      const data = await response.json();
-      setTask(data);
-      if (["completed", "failed", "cancelled"].includes(data.status)) {
-        setBusy(false);
-        if (data.result) setMessages((current) => [...current, { role: "ai", text: data.result }]);
-        if (data.error) setMessages((current) => [...current, { role: "ai", text: `Erro: ${data.error}` }]);
+      const [statusResponse, eventsResponse] = await Promise.all([
+        fetch(`/api/task-status?id=${task.id}`, { cache: "no-store" }),
+        fetch(`/api/task-events?id=${task.id}`, { cache: "no-store" }),
+      ]);
+      if (statusResponse.ok) {
+        const data = await statusResponse.json();
+        setTask(data);
+        if (terminal.includes(data.status)) {
+          setBusy(false);
+          if (data.result) setMessages((current) => [...current, { role: "ai", text: data.result }]);
+          if (data.error) setMessages((current) => [...current, { role: "ai", text: `Erro: ${data.error}` }]);
+        }
       }
+      if (eventsResponse.ok) setEvents(await eventsResponse.json());
     }, 1200);
     return () => window.clearInterval(timer);
   }, [task]);
@@ -35,6 +44,7 @@ export default function Home() {
     setMessages((current) => [...current, { role: "user", text }]);
     setInput("");
     setBusy(true);
+    setEvents([]);
 
     try {
       const response = await fetch("/api/chat", {
@@ -45,11 +55,16 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? "Falha ao criar tarefa");
       setTask(data.task);
-      setMessages((current) => [...current, { role: "ai", text: `Tarefa #${data.task.id} iniciada. Fase: ${data.task.phase}.` }]);
+      setMessages((current) => [...current, { role: "ai", text: `Tarefa #${data.task.id} iniciada.` }]);
     } catch (error) {
       setMessages((current) => [...current, { role: "ai", text: error instanceof Error ? error.message : "Não foi possível iniciar a tarefa." }]);
       setBusy(false);
     }
+  }
+
+  async function cancelTask() {
+    if (!task || terminal.includes(task.status)) return;
+    await fetch(`/api/task-cancel?id=${task.id}`, { method: "POST" });
   }
 
   return (
@@ -87,13 +102,20 @@ export default function Home() {
                 <div key={index} className={`message ${message.role}`}>{message.text}</div>
               ))}
               {busy && <div className="message ai">Executando autonomamente… {task?.phase ?? "iniciando"}</div>}
+              {task && events.length > 0 && (
+                <div className="message ai">
+                  <strong>Execução</strong>
+                  <div>{events.slice(-8).map((item) => <div key={item.id}>• {item.phase}: {item.message}</div>)}</div>
+                  {!terminal.includes(task.status) && <button type="button" onClick={cancelTask}>Solicitar cancelamento</button>}
+                </div>
+              )}
             </div>
           )}
 
           <form className="composer" onSubmit={sendMessage}>
             <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ex.: analise meu projeto e encontre os erros..." />
             <div className="composer-footer">
-              <span className="hint">A tarefa é persistida e pode ser recuperada pelo worker.</span>
+              <span className="hint">Fila persistente · memória · pesquisa · validação · eventos</span>
               <button className="send" type="submit" disabled={busy}>{busy ? "Executando..." : "Enviar ↑"}</button>
             </div>
           </form>
