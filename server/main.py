@@ -13,9 +13,11 @@ from agent.events import list_events
 from agent.orchestrator import TaskOrchestrator, TaskSnapshot
 from agent.worker import execute
 from server.git_api import router as git_router
+from server.workspace_api import router as workspace_router
 
-app = FastAPI(title="Yuri Code AI", version="0.5.0")
+app = FastAPI(title="Yuri Code AI", version="0.6.0")
 app.include_router(git_router)
+app.include_router(workspace_router)
 orchestrator = TaskOrchestrator()
 
 
