@@ -1,6 +1,6 @@
 [project]
 name = "yuri-code-ai"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI coding agent with autonomous web research and persistent memory"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,10 +8,13 @@ dependencies = [
     "openhands-sdk",
     "sqlalchemy>=2.0",
     "tavily-python>=0.7",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
 ]
 
 [project.scripts]
 yuri-code-ai = "agent.main:main"
+yuri-code-ai-api = "agent.api:main"
 
 [build-system]
 requires = ["hatchling"]
