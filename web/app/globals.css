@@ -14,7 +14,8 @@ button { cursor: pointer; }
 .nav button.active, .nav button:hover { background: #1b1b1f; color: #fff; }
 .project { margin-top: 28px; border: 1px solid #29292e; border-radius: 10px; padding: 12px; }
 .project small { color: #77777f; display: block; margin-bottom: 6px; }
-.project strong { font-size: 13px; }
+.project strong, .project span { display: block; font-size: 13px; }
+.project span { color: #77777f; margin-top: 6px; font-size: 11px; overflow-wrap: anywhere; }
 .main { min-width: 0; display: flex; flex-direction: column; }
 .header { height: 64px; border-bottom: 1px solid #242428; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
 .header h1 { font-size: 15px; margin: 0; }
@@ -24,13 +25,20 @@ button { cursor: pointer; }
 .hero h2 { font-size: clamp(28px, 5vw, 46px); margin: 0 0 10px; letter-spacing: -1.5px; }
 .hero p { margin: 0; color: #85858d; }
 .messages { display: grid; gap: 14px; margin-bottom: 20px; }
-.message { max-width: 82%; padding: 14px 16px; border: 1px solid #29292e; border-radius: 12px; line-height: 1.55; font-size: 14px; }
+.message { max-width: 82%; padding: 14px 16px; border: 1px solid #29292e; border-radius: 12px; line-height: 1.55; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .message.user { margin-left: auto; background: #17171b; }
 .message.ai { background: #0f0f11; }
+.message button { margin-top: 12px; border: 1px solid #3a3a40; background: #18181c; color: #fff; border-radius: 7px; padding: 7px 10px; }
 .composer { margin-top: auto; border: 1px solid #303036; border-radius: 14px; background: #111113; padding: 10px; box-shadow: 0 10px 40px #0006; }
 .composer textarea { width: 100%; min-height: 82px; resize: vertical; border: 0; outline: 0; background: transparent; color: #fff; padding: 8px; }
-.composer-footer { display: flex; align-items: center; justify-content: space-between; padding: 5px 4px 2px 8px; }
+.composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 4px 2px 8px; }
 .hint { color: #686870; font-size: 11px; }
 .send { border: 0; background: #f2f2f2; color: #080808; border-radius: 8px; padding: 9px 16px; font-weight: 700; }
 .send:hover { background: #fff; }
-@media (max-width: 720px) { .app { grid-template-columns: 1fr; } .sidebar { display: none; } .content { padding: 24px 14px 14px; } .header { padding: 0 14px; } .message { max-width: 94%; } }
+.send:disabled { opacity: .55; cursor: not-allowed; }
+.panel { width: min(760px, 100%); margin: 40px auto; border: 1px solid #29292e; border-radius: 14px; background: #101012; padding: 24px; color: #b5b5bd; line-height: 1.6; }
+.panel h2 { color: #fff; margin-top: 0; }
+.panel b { color: #eee; }
+.changes { margin-top: 18px; border-top: 1px solid #29292e; padding-top: 12px; font-family: monospace; font-size: 12px; }
+.changes div { padding: 4px 0; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .app { grid-template-columns: 1fr; } .sidebar { display: none; } .content { padding: 24px 14px 14px; } .header { padding: 0 14px; } .message { max-width: 94%; } .composer-footer { align-items: flex-end; } .hint { max-width: 65%; } }

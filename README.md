@@ -1,64 +1,40 @@
 # Yuri Code AI
 
-Agente de IA para programação, desenvolvido por Yuri.
+Agente autônomo de engenharia de software desenvolvido por Yuri.
 
-## Objetivo
+## Fundação atual
 
-A Yuri Code AI é um agente de programação com autonomia para pesquisar na internet, entender projetos, criar e editar código, executar comandos, testar, corrigir erros e continuar iterando até concluir uma tarefa.
+- OpenHands para programação.
+- FastAPI + fila persistente + worker.
+- Recuperação após reinício.
+- Memória persistente e histórico de pesquisa.
+- Indexação do workspace para contexto relevante.
+- Pesquisa web integrada e Tavily opcional.
+- Checkpoint Git antes de alterações quando possível.
+- Quality gate com validação antes e depois da correção.
+- Eventos persistentes de execução.
+- Operações GitHub: clone, branch, commit, push e Pull Request via API quando configurado.
+- Interface Next.js acompanhando tarefas.
 
-## Capacidades atuais
+Sem quotas artificiais de pesquisas, arquivos ou iterações. Limites externos de modelo, sistema, permissões, serviços e cobrança permanecem válidos.
 
-- **Programação:** leitura, criação, edição e organização de arquivos.
-- **Execução:** terminal, instalação de dependências, testes e comandos de desenvolvimento.
-- **Pesquisa web:** navegador integrado para pesquisar sites, documentação, GitHub e outras fontes públicas.
-- **Pesquisa adicional:** integração opcional com Tavily para buscas estruturadas e conteúdo extraído.
-- **Memória persistente:** SQLite por padrão ou PostgreSQL configurável.
-- **Banco de dados:** projetos, conversas, mensagens, memórias e histórico de pesquisas.
-- **Iteração:** pode pesquisar, implementar, testar, analisar falhas e corrigir novamente.
+## Execução
 
-## Política de capacidade
-
-Não existe quota diária, mensal ou por conversa implementada pela Yuri Code AI. Também não existe um limite artificial de arquivos, pesquisas ou número de iterações por tarefa.
-
-Isso **não** significa burlar limites externos. Modelo de IA, APIs, navegador, hospedagem, sistema operacional, serviços de terceiros e contas utilizadas podem possuir limites técnicos, de segurança ou de cobrança. A aplicação não adiciona uma quota própria por cima desses limites.
-
-## Base tecnológica
-
-O motor usa o **OpenHands Software Agent SDK**, que permite agentes de programação com ferramentas, workspaces e ferramentas personalizadas. O SDK também possui integração de navegador para navegar, interagir com páginas e extrair conteúdo. citeturn1search1turn3view0
-
-## Banco e memória
-
-O banco é inicializado automaticamente quando o agente inicia.
-
-Por padrão:
-
-```text
-.yuri-data/yuri_code_ai.db
+```bash
+yuri-code-ai-api
+python -m agent.worker
 ```
 
-Para produção, configure `DATABASE_URL` com PostgreSQL. A camada de persistência já separa:
+Produção: `YURI_API_RUN_LOCAL_WORKER=false` e worker separado.
 
-- projetos;
-- conversas;
-- mensagens;
-- memórias por escopo/chave;
-- histórico de pesquisas e fontes.
+## API
 
-## Pesquisa na internet
+`GET /health` · `POST /tasks` · `GET /tasks/{id}` · `GET /tasks/{id}/events` · `POST /tasks/{id}/cancel`
 
-A Yuri Code AI pode usar o `BrowserToolSet` do OpenHands para navegar diretamente na web. Isso permite que o próprio agente decida quando pesquisar, visite várias páginas e extraia informações. citeturn3view0
+## GitHub
 
-Também existe uma camada opcional com Tavily. Ela não impõe limite dentro da aplicação e registra os resultados no banco. O provedor externo, naturalmente, aplica seus próprios créditos e limites de conta. A API do Tavily oferece busca, extração e pesquisa aprofundada. citeturn0search0turn0search2
+Configure `GITHUB_TOKEN` somente no ambiente de execução quando a automação GitHub for necessária. O fluxo documentado está em `docs/GITHUB-AUTOMATION.md`.
 
-## Configuração rápida
+## Próxima evolução
 
-1. Copie `config/.env.example` para `.env`.
-2. Configure `LLM_API_KEY` e `LLM_MODEL`.
-3. Instale as dependências.
-4. Defina `YURI_WORKSPACE` para o projeto que a IA poderá trabalhar.
-5. Opcionalmente configure `TAVILY_API_KEY`.
-6. Execute `yuri-code-ai`.
-
-## Princípio
-
-A Yuri Code AI deve entender antes de alterar, pesquisar quando necessário, implementar de forma completa, testar o resultado e continuar corrigindo quando encontrar problemas.
+Revisão especializada, deploy/monitoramento, rollback automatizado, roteamento entre modelos e execução multiagente.
